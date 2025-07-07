@@ -356,6 +356,7 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
     ctxt.recommended_mcs    = mcs;
     ctxt.recommended_ri     = nof_layers;
     ctxt.expected_nof_rbs   = nof_rbs;
+    ctxt.ue_rnti            = u.crnti();  // 이건 get_dl_sched_context()에서만 가능
     return ctxt;
   }
 

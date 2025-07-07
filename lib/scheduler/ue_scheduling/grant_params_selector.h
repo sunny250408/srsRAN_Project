@@ -52,6 +52,7 @@ struct dl_sched_context {
   unsigned recommended_ri;
   /// Expected number of RBs to allocate.
   unsigned expected_nof_rbs;
+  rnti_t ue_rnti;
 };
 
 /// Retrieve recommended PDCCH and PDSCH parameters for a newTx DL grant.
