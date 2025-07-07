@@ -34,6 +34,7 @@
 using namespace srsran;
 
 /// Number of UL HARQs reserved per UE (Implementation-defined)
+///수신 UEs에 대해 예약된 UL HARQ의 수 (구현 정의)
 constexpr unsigned NOF_UL_HARQS = 16;
 
 /// The default number of HARQ processes to be used on the PDSCH of a serving cell. See TS 38.331, \c

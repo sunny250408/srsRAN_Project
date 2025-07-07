@@ -26,15 +26,23 @@
 using namespace srsran;
 
 constexpr unsigned NOF_BITS_PER_BYTE = 8U;
+//NOF_BITS_PER_BYTE는 8로 정의되어 있으며, 이는 1바이트가 8비트로 구성되어 있음을 나타냅니다.
 
 /// \brief Estimation of the N_info for payloads above 3824 bits.
 static float estimate_nof_info_payload_higher_3824_bits(unsigned payload_bits, float tcr)
+//tcr는 target code rate의 약자로, 목표 코드율을 나타냅니다.
 {
   // Approximation of the inverse of the TBS derivation based on nof_info_prime.
+  //TBS는 Transport Block Size의 약자로, 전송 블록 크기를 나타냅니다.
+  //nof_info_prime는 전송 블록 크기를 계산하기 위한 파라미터로 사용됩니다.
   // TODO: Improve this estimation algorithm.
   const unsigned nof_info_prime_estim = std::max(3840U, payload_bits + 24);
-
+  //nof_info_prime_estim는 전송 블록 크기를 계산하기 위한 추정값으로, 최소 3840 이상이어야 하며, payload_bits + 24로 계산됩니다.
+  //max(a, b)는 a와 b 중 큰 값을 반환하는 함수입니다.
   unsigned C = 1;
+  // C is a scaling factor that depends on the target code rate (tcr).
+  //C는 목표 코드율(tcr)에 따라 달라지는 스케일링 팩터입니다.
+  //
   if (tcr <= 0.25F) {
     C = (nof_info_prime_estim + 24) / 3816;
   } else if (nof_info_prime_estim > 8424) {
@@ -45,14 +53,19 @@ static float estimate_nof_info_payload_higher_3824_bits(unsigned payload_bits, f
 }
 
 /// \brief Obtain an initial estimate for the minimum number of PRBs needed so that the TBS >= payload size.
+/// TBS가 payload size 이상이 되도록 필요한 최소 PRB 수를 추정합니다.
 unsigned srsran::estimate_required_nof_prbs(const prbs_calculator_sch_config& sch_config,
                                             unsigned                          max_nof_available_rbs)
 {
   // Convert size into bits, as per TS procedures for TBS.
+  //bits 단위로 변환합니다. TS 절차에 따라 TBS를 계산할 때 비트 단위를 사용합니다.
   const unsigned payload_size = sch_config.payload_size_bytes * NOF_BITS_PER_BYTE;
+  //sch_config.payload_size_bytes는 페이로드 크기를 바이트 단위로 나타냄
 
   float                 nof_info_estimate;
   static const unsigned payload_step_threshold = 3824;
+  //payload_step_threshold는 3824로 정의되어 있으며, 이는 페이로드 크기가 3824 비트 이상인 경우와 이하인 경우를 구분하는 임계값입니다.
+  //payload는 전송할 데이터의 크기를 나타내며, 이 값이 3824 비트 이상인 경우와 이하인 경우에 따라 다른 방식으로 TBS를 계산합니다.
   if (payload_size >= payload_step_threshold) {
     nof_info_estimate = estimate_nof_info_payload_higher_3824_bits(payload_size, sch_config.mcs_descr.target_code_rate);
   } else {

@@ -19,6 +19,7 @@
  * and at http://www.gnu.org/licenses/.
  *
  */
+ //good!
 
 #include "grant_params_selector.h"
 #include "../slicing/slice_ue_repository.h"
@@ -37,6 +38,7 @@ struct mcs_prbs_selection {
   /// Recommended MCS to use.
   sch_mcs_index mcs;
   /// Number of recommended PRBs for the PDSCH grant given the number of pending bytes and chosen MCS.
+  ///PRB의 수는 PDSCH grant에 대한 권장 값으로, 대기 중인 바이트 수와 선택된 MCS에 따라 결정됩니다.
   unsigned nof_prbs;
 };
 
@@ -48,7 +50,7 @@ static std::optional<mcs_prbs_selection> compute_newtx_required_mcs_and_prbs(con
   // Note: At this point, CQI must be higher than 0, so MCS is valid.
   const sch_mcs_index       mcs = ue_cc.link_adaptation_controller().calculate_dl_mcs(pdsch_cfg.mcs_table).value();
   const sch_mcs_description mcs_config = pdsch_mcs_get_config(pdsch_cfg.mcs_table, mcs);
-
+//get_nof_prbs(prbs_calculator_sch_config)함수는 PRB의 수를 계산하는 함수로, PRB의 수를 계산하기 위해 필요한 매개변수를 포함하는 구조체를 인자로 받습니다.
   sch_prbs_tbs prbs_tbs = get_nof_prbs(prbs_calculator_sch_config{pending_bytes,
                                                                   pdsch_cfg.symbols.length(),
                                                                   calculate_nof_dmrs_per_rb(pdsch_cfg.dmrs),
@@ -56,23 +58,42 @@ static std::optional<mcs_prbs_selection> compute_newtx_required_mcs_and_prbs(con
                                                                   mcs_config,
                                                                   pdsch_cfg.nof_layers},
                                        nof_rb_lims.stop());
+                                       //pending_bytes는 대기 중인 바이트 수를 나타내며, pdsch_cfg.symbols.length()는 PDSCH 기호의 길이를 나타냅니다.
+                                       //기호는 OFDM(직교 주파수 분할 다중 접속) 시스템에서 사용되는 기본 단위로, 각 기호는 특정 시간 동안 전송되는 데이터를 나타냅니다
+                                       // calculate_nof_dmrs_per_rb(pdsch_cfg.dmrs)는 PRB당 DMRS(데이터 참조 신호)의 수를 계산하는 함수입니다.
+                                       // pdsch_cfg.nof_oh_prb는 PDSCH의 오버헤드 PRB 수를 나타내며, mcs_config는 MCS(변조 및 코딩 스킴) 구성을 나타냅니다.
+                                       // pdsch_cfg.nof_layers는 PDSCH의 레이어 수를 나타냅니다.
+                                       // nof_rb_lims.stop()는 PRB 계산의 상한값을 나타냅니다.
+  //srsran_sanity_check는 srsRAN 라이브러리에서 제공하는 함수로, 주어진 조건이 참인지 확인하고, 거짓인 경우 오류를 발생시킵니다.
+  //prbs_tbs.nof_prbs <= nof_rb_lims.stop()는 PRB의 수가 상한값 이하인지 확인하는 조건입니다.
+  //prbs_tbs.nof_prbs는 PRB의 수를 나타내며, nof_rb_lims.stop()은 PRB 계산의 상한값을 나타냅니다.
+  //Error in RB computation은 오류 메시지로, PRB 계산에서 오류가 발생했음을 나타냅니다.
   srsran_sanity_check(prbs_tbs.nof_prbs <= nof_rb_lims.stop(), "Error in RB computation");
   if (prbs_tbs.nof_prbs == 0) {
     return std::nullopt;
   }
+  //nullopt는 std::optional의 값이 없음을 나타내는 특별한 값으로, 이 경우 PRB 계산에서 유효한 값을 찾을 수 없음을 의미합니다.
 
   // Apply min RB grant size limits (max was applied before).
+  //PRB의 최소 크기 제한을 적용합니다.
   prbs_tbs.nof_prbs = std::max(prbs_tbs.nof_prbs, nof_rb_lims.start());
 
   // [Implementation-defined] In case of partial slots and nof. PRBs allocated equals to 1 probability of KO is
   // high due to code not being able to cope with interference. So the solution is to increase the PRB allocation
   // to greater than 1 PRB.
+  //PRB를 한개보다 더 늘려야 하는 이유는, 간헐적인 슬롯(partial slots)에서 PRB가 1개로 할당될 경우, 간섭(interference)을 처리할 수 없는 코드로 인해 KO(중단)의 확률이 높아지기 때문입니다.
   if (prbs_tbs.nof_prbs == 1 and pdsch_cfg.symbols.length() < NOF_OFDM_SYM_PER_SLOT_NORMAL_CP) {
     prbs_tbs.nof_prbs = 2;
   }
+  //pdsch_cfg.symbols.length()는 PDSCH의 symbols의 길이를 나타낸다
+  //NOF_OFDM_SYM_PER_SLOT_NORMAL_CP는 일반 CP(사이클릭 프리픽스) 슬롯당 OFDM 심볼의 수를 나타냅니다.
+  //cp는 주기적 CP(주기적 사이클릭 프리픽스)를 나타내며, OFDM(직교 주파수 분할 다중 접속) 시스템에서 사용되는 기술입니다.
+  //cfg는 구성(configuration)을 나타냄
 
   return mcs_prbs_selection{mcs.value(), prbs_tbs.nof_prbs};
 }
+//mcs.value()는 MCS(변조 및 코딩 스킴)의 값을 반환하는 함수로, MCS는 무선 통신에서 데이터 전송의 효율성을 결정하는 중요한 요소입니다.
+//mcs_prbs_selection{mcs.value(), prbs_tbs.nof_prbs}는 MCS와 PRB의 수를 포함하는 구조체를 생성합니다.
 
 /// Compute PUSCH grant parameters for a newTx/reTx given the UE state, DCI type and PUSCH time-domain resource.
 static pusch_config_params compute_pusch_config_params(const ue_cell&                               ue_cc,
@@ -203,39 +224,62 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
 
   if (not ue_cc.is_pdsch_enabled(pdcch_slot, pdsch_slot) or ue_cc.is_in_fallback_mode()) {
     // The UE cannot be scheduled in the provided slots.
+    //ue_cc.is_pdsch_enabled(pdcch_slot, pdsch_slot)는 PDSCH가 활성화되어 있는지 확인하는 함수로, pdcch_slot과 pdsch_slot에서 PDSCH가 활성화되어 있는지 여부를 반환합니다.
+    //ue_cc.is_in_fallback_mode()는 UE가 폴백 모드에 있는지 확인하는 함수로, 폴백 모드에서는 PDSCH가 활성화되지 않습니다.
     return std::nullopt;
   }
 
   const ue_cell_configuration& ue_cell_cfg      = ue_cc.cfg();
   const cell_configuration&    cell_cfg         = ue_cell_cfg.cell_cfg_common;
   unsigned                     slot_nof_symbols = cell_cfg.get_nof_dl_symbol_per_slot(pdsch_slot);
+  //slot_nof_symbols는 pdsch_slot에서의 DL 심볼의 수를 나타내며, cell_cfg.get_nof_dl_symbol_per_slot(pdsch_slot) 함수를 통해 계산됩니다.
 
   // TODO: Support more search spaces.
   constexpr static search_space_id ue_ded_ss_id = to_search_space_id(2);
-  const search_space_info&         ss           = ue_cc.cfg().search_space(ue_ded_ss_id);
+  //constexper static은 상수로 선언된 변수를 나타내며, 이 변수는 프로그램 전체에서 변경되지 않습니다.
+  //ue_ded_ss_id는 검색 공간 ID를 나타내며, to_search_space_id(2) 함수를 통해 생성됩니다.
 
+
+  const search_space_info&         ss           = ue_cc.cfg().search_space(ue_ded_ss_id);
+  //ss는 검색 공간 정보를 나타내며, ue_cc.cfg().search_space(ue_ded_ss_id) 함수를 통해 검색 공간 ID에 해당하는 정보를 가져옵니다.
+
+  //h_dl is a handle to the HARQ process for the DL grant.
+  //HARQ (Hybrid Automatic Repeat reQuest) is a protocol for error control in data transmission.
+  //h_dl 이 nullptr이 아니라면, 이는 DL 재전송(reTx) 케이스를 나타냅니다.
   if (h_dl != nullptr) {
     // ReTx case.
     if (slot_nof_symbols < h_dl->get_grant_params().nof_symbols) {
       // Early exit if there are not enough symbols in the slot for the retransmission.
+      //get_grant_params().nof_symbols는 재전송에 필요한 심볼의 수를 나타냄
+      //->는 C++에서 객체의 멤버에 접근하기 위한 연산자로, h_dl은 포인터이므로 get_grant_params() 함수를 호출하여 그 결과의 nof_symbols 멤버에 접근합니다.
       return std::nullopt;
     }
     srsran_assert(ss.get_dl_dci_format() == get_dci_format(h_dl->get_grant_params().dci_cfg_type),
                   "DCI type cannot change across reTxs");
   }
+  //ss.get_dl_dci_format()는 DL DCI 형식을 가져오는 함수로, 현재 검색 공간의 DL DCI 형식을 반환합니다.
+  //get_dci_format(h_dl->get_grant_params().dci_cfg_type)는 DL DCI 형식을 가져오는 함수로, h_dl의 재전송 파라미터에서 DCI 형식을 가져옵니다.
+  //"DCI type cannot change across reTxs"는 재전송 간에 DCI 형식이 변경될 수 없다는 것을 나타내는 오류 메시지입니다.
 
+  //cell_cfg.expert_cfg.ue.pdsch_nof_rbs는 PDSCH에 할당된 RB의 수를 나타내며
+  //ue_cell_cfg.rrm_cfg().pdsch_grant_size_limits는 PDSCH grant 크기 제한을 나타냅니다.
   // Determine RB allocation limits.
   interval<unsigned> nof_rb_lims = cell_cfg.expert_cfg.ue.pdsch_nof_rbs &
                                    ue_cell_cfg.rrm_cfg().pdsch_grant_size_limits.convert_to<interval<unsigned>>();
   const auto crb_lims = (cell_cfg.expert_cfg.ue.pdsch_crb_limits & ss.dl_crb_lims).convert_to<crb_interval>();
+  //crb_lims는 PDSCH에 할당된 CRB의 범위를 나타내며, cell_cfg.expert_cfg.ue.pdsch_crb_limits와 ss.dl_crb_lims의 교집합을 구한 후, crb_interval로 변환합니다.
 
   const auto   prb_lims = crb_to_prb(ss.dl_crb_lims, crb_lims);
+  //crb_to_prb(ss.dl_crb_lims, crb_lims)는 CRB를 PRB로 변환하는 함수로, ss.dl_crb_lims와 crb_lims를 사용하여 PRB의 범위를 계산합니다.
   vrb_interval vrb_lims;
   if (interleaving_enabled and ss.interleaved_mapping.has_value()) {
     const auto& interleaved_mapping = ss.interleaved_mapping.value();
     vrb_lims                        = {interleaved_mapping.prb_to_vrb(prb_lims.start()),
                                        interleaved_mapping.prb_to_vrb(prb_lims.stop() - 1) + 1};
-  } else {
+  }
+  //interleaving_enabled가 true이고 ss.interleaved_mapping가 존재하는 경우, interleaved_mapping을 사용하여 PRB를 VRB로 변환합니다.
+  //ss.interleaved_mapping.value()는 interleaved_mapping의 값을 가져오며, prb_to_vrb(prb_lims.start())와 prb_to_vrb(prb_lims.stop() - 1) + 1을 사용하여 VRB의 범위를 계산합니다.
+  else {
     vrb_lims = prb_lims.convert_to<vrb_interval>();
   }
 
@@ -247,19 +291,26 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
 
   for (unsigned pdsch_td_index = 0, e = ss.pdsch_time_domain_list.size(); pdsch_td_index != e; ++pdsch_td_index) {
     const pdsch_time_domain_resource_allocation& pdsch_td_res = ss.pdsch_time_domain_list[pdsch_td_index];
+    //e= ss.pdsch_time_domain_list.size()는 PDSCH 시간 도메인 자원 할당의 크기를 나타내며, pdsch_td_index는 현재 반복 중인 인덱스입니다.
+    //;는 C++에서 문장의 끝을 나타내는 구분자로, 이 줄에서는 pdsch_td_index가 e와 같지 않은 동안 반복고 ++pdsch_td_index를 증가시키며 PDSCH 시간 도메인 자원 할당을 순회합니다.
+    //pdsch_td_index는 PDSCH 시간 도메인 자원 할당의 인덱스를 나타내며, e는 PDSCH 시간 도메인 자원 할당의 크기를 나타냅니다.
+    //pdsch_td_res는 현재 반복 중인 PDSCH 시간 도메인 자원 할당을 나타내며, ss.pdsch_time_domain_list[pdsch_td_index]를 통해 해당 자원 할당을 가져옵니다.
 
     // Check that k0 matches the chosen PDSCH slot
+    //pdsch_td_res.k0는 PDSCH 시간 도메인 자원 할당의 k0 값을 나타내며, pdcch_slot + pdsch_td_res.k0는 PDCCH 슬롯과 PDSCH 시간 도메인 자원 할당의 k0 값을 더한 결과입니다.
     if (pdcch_slot + pdsch_td_res.k0 != pdsch_slot) {
       continue;
     }
 
     // If it is a retx, we need to ensure we use a time_domain_resource with the same number of symbols as used for
     // the first transmission.
+    //get_grant_params().nof_symbols는 재전송에 필요한 심볼의 수를 나타내며, h_dl->get_grant_params().nof_symbols는 DL 재전송 파라미터에서 가져옵니다.
     if (h_dl != nullptr and pdsch_td_res.symbols.length() != h_dl->get_grant_params().nof_symbols) {
       continue;
     }
 
     // Check whether PDSCH time domain resource last symbol is lower than the total number of DL symbols of the slot.
+   //PDSCH 시간 도메인 자원 할당의 마지막 심볼이 슬롯의 총 DL 심볼 수보다 작은지 확인합니다.  
     if (slot_nof_symbols < pdsch_td_res.symbols.stop()) {
       continue;
     }
@@ -278,6 +329,7 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
       nof_layers                           = ue_cc.channel_state_manager().get_nof_dl_layers();
       const pdsch_config_params& pdsch_cfg = ss.get_pdsch_config(pdsch_td_index, nof_layers);
       auto mcs_prbs_sel = compute_newtx_required_mcs_and_prbs(pdsch_cfg, ue_cc, pending_bytes, nof_rb_lims);
+      //mcs_prbs_sel는 compute_newtx_required_mcs_and_prbs 함수의 결과로, 새로운 전송에 필요한 MCS와 PRB의 수를 포함하는 선택적 구조체입니다.
       if (not mcs_prbs_sel.has_value()) {
         // Note: No point in carrying on.
         return std::nullopt;

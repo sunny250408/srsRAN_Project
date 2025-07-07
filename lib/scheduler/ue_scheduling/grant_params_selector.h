@@ -19,6 +19,8 @@
  * and at http://www.gnu.org/licenses/.
  *
  */
+//주로 DL/UL 전송을 위한 Grant생성과 관련된 추천 값들을 제공
+//namespace srsran::sched_helper 내부에 스케줄링 관련 구조체 및 함수들이 정의
 
 #pragma once
 
@@ -33,11 +35,13 @@ class ue_cell;
 class slice_ue;
 
 namespace sched_helper {
-
+//구조체 설명(dl_sched_context)
 /// PDCCH and PDSCH parameters recommended for a DL grant.
 struct dl_sched_context {
   /// SearchSpace to use.
-  search_space_id ss_id;
+  //search_space_id(어떤 구조체나 타입 이름 int같은 거)
+  //ss_id (그 타입으로 선언된 변수)
+  search_space_id ss_id; 
   /// PDSCH time-domain resource index.
   uint8_t pdsch_td_res_index;
   /// Limits on VRBs for DL grant allocation.
@@ -51,13 +55,20 @@ struct dl_sched_context {
 };
 
 /// Retrieve recommended PDCCH and PDSCH parameters for a newTx DL grant.
+/// 새 DL전송(newTx)을 위한 스케줄 컨텍스트 생성
 std::optional<dl_sched_context> get_newtx_dl_sched_context(const slice_ue& u,
                                                            slot_point      pdcch_slot,
                                                            slot_point      pdsch_slot,
                                                            bool            interleaving_enabled,
                                                            unsigned        pending_bytes);
+                                                           //const 상수로 취급하겠다는 c++ 문법 키워드 즉, 읽기만 가능하고 수정은 불가능하다.
+                                                           //const slice_ue& u는 함수 안에서 u라는 인자를 통해 전달된 slice_ue 객체를 읽기만 할 수 있고, 수정은 불가능하다는 의미
+                                                           //slot_point는 타입(자료형)으로, pdcch_slot과 pdsch_slot은 slot_point 타입의 변수로 선언된 것
+                                                           //bool은 자료형으로, interleaving_enabled는 bool 타입의 변수로 선언된 것
+                                                           //unsigned는 자료형으로, pending_bytes는 unsigned 타입의 변수로 선언된 것
 
 /// Retrieve recommended PDCCH and PDSCH parameters for a reTx DL grant.
+/// 재 전송송 (reTx)을 위한 DL shed_context 생성
 std::optional<dl_sched_context> get_retx_dl_sched_context(const slice_ue&               u,
                                                           slot_point                    pdcch_slot,
                                                           slot_point                    pdsch_slot,
@@ -73,6 +84,7 @@ vrb_interval compute_newtx_dl_vrbs(const dl_sched_context& decision_ctxt,
 vrb_interval compute_retx_dl_vrbs(const dl_sched_context& decision_ctxt, const vrb_bitmap& used_vrbs);
 
 /// PDCCH and PUSCH parameters recommended for a UL grant.
+///struct는 서로 관련 있는 여러 데이터를 하나로 묶는 사용자 정의 자료형
 struct ul_sched_context {
   /// SearchSpace to use.
   search_space_id ss_id;
