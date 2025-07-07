@@ -214,7 +214,9 @@ static std::optional<mcs_prbs_selection> compute_newtx_required_mcs_and_prbs(con
 }
 
 static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&               u,
-                                                            slot_point                    pdcch_slot,
+                                                            slot_point   
+                                                            
+                                                            pdcch_slot,
                                                             slot_point                    pdsch_slot,
                                                             bool                          interleaving_enabled,
                                                             const dl_harq_process_handle* h_dl,
@@ -226,6 +228,7 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
     // The UE cannot be scheduled in the provided slots.
     //ue_cc.is_pdsch_enabled(pdcch_slot, pdsch_slot)는 PDSCH가 활성화되어 있는지 확인하는 함수로, pdcch_slot과 pdsch_slot에서 PDSCH가 활성화되어 있는지 여부를 반환합니다.
     //ue_cc.is_in_fallback_mode()는 UE가 폴백 모드에 있는지 확인하는 함수로, 폴백 모드에서는 PDSCH가 활성화되지 않습니다.
+    //이 부분에서 ue가 현재 자원 할당 가능한 상태인지 확인함(PDCP, fallback 모드 등).
     return std::nullopt;
   }
 
@@ -396,12 +399,23 @@ find_available_vrbs(const dl_sched_context& space_cfg, const vrb_bitmap& used_vr
 vrb_interval sched_helper::compute_newtx_dl_vrbs(const dl_sched_context& decision_ctxt,
                                                  const vrb_bitmap&       used_vrbs,
                                                  unsigned                max_nof_rbs)
-{
+{ if (decision_ctxt.ue_rnti == to_rnti(0x4601)) {
+    return vrb_interval{10, 20};
+   }
   return find_available_vrbs(decision_ctxt, used_vrbs, max_nof_rbs);
 }
 
 vrb_interval sched_helper::compute_retx_dl_vrbs(const dl_sched_context& decision_ctxt, const vrb_bitmap& used_vrbs)
 {
+  vrb_interval fixed_prbs = {10, 20};
+
+  if (decision_ctxt.ue_rnti == to_rnti(0x4601)) {
+    if (fixed_prbs.length() != decision_ctxt.expected_nof_rbs) {
+      return {};  // 길이 안 맞으면 재전송 포기
+    }
+    return fixed_prbs;
+  }
+
   vrb_interval vrbs = find_available_vrbs(decision_ctxt, used_vrbs, decision_ctxt.expected_nof_rbs);
   if (vrbs.length() != decision_ctxt.expected_nof_rbs) {
     // In case of Retx, the #CRBs need to stay the same.
