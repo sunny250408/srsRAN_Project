@@ -356,7 +356,7 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
     ctxt.recommended_mcs    = mcs;
     ctxt.recommended_ri     = nof_layers;
     ctxt.expected_nof_rbs   = nof_rbs;
-    ctxt.ue_rnti            = u.crnti();  // 이건 get_dl_sched_context()에서만 가능
+    ctxt.ue_rnti            = u.crnti();  
     return ctxt;
   }
 
@@ -414,7 +414,7 @@ vrb_interval sched_helper::compute_retx_dl_vrbs(const dl_sched_context& decision
     if (fixed_prbs.length() != decision_ctxt.expected_nof_rbs) {
       return {};  // 길이 안 맞으면 재전송 포기
     }
-    return fixed_prbs;
+    return fixed_prbs;s
   }
 
   vrb_interval vrbs = find_available_vrbs(decision_ctxt, used_vrbs, decision_ctxt.expected_nof_rbs);
