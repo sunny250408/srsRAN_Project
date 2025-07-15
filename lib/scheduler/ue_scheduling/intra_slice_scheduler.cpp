@@ -518,17 +518,8 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
     srsran_assert(max_grant_size > 0, "Invalid grant size.");
 
     // Derive recommended parameters for the DL newTx grant.
-    //vrb_interval alloc_vrbs = grant_builder.recommended_vrbs(used_dl_vrbs, max_grant_size);
-   // 🟢 [수정 핵심] 특정 UE에게 PRB를 고정
-    vrb_interval alloc_vrbs;
-    const auto& ue_cc = grant_builder.ue().get_cc();
-    
-    if (grant_builder.ue().ue_index() == 1 && ue_cc.is_registered()) { // ✅ UE1 (index 1) 고정
-      alloc_vrbs = {247, 275};                // PRB 247~274 (총 28개)
-    } else {
-      alloc_vrbs = grant_builder.recommended_vrbs(used_dl_vrbs, max_grant_size);
-    }
-    //코드 삽입
+    vrb_interval alloc_vrbs = grant_builder.recommended_vrbs(used_dl_vrbs, max_grant_size);
+ 
     if (alloc_vrbs.empty()) {
       logger.error("ue={} c-rnti={}: Failed to allocate PDSCH CRBs",
                    fmt::underlying(grant_builder.ue().ue_index()),
@@ -559,13 +550,6 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
     slice.store_grant(nof_rbs_alloc);
     rb_count += nof_rbs_alloc;
     rbs_missing = (max_grant_size - nof_rbs_alloc);
-
-      // 📘 확인용 로그
-    logger.info("UE {} (rnti=0x{:04x}) assigned PRBs: {} ~ {}",
-            static_cast<unsigned>(grant_builder.ue().ue_index()),
-            static_cast<unsigned>(grant_builder.ue().crnti()),
-            static_cast<unsigned>(alloc_vrbs.start()),
-            static_cast<unsigned>(alloc_vrbs.stop() - 1));
   }
 
   // Clear grant builders.
