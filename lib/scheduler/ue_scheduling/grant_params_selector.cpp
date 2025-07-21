@@ -410,7 +410,6 @@ vrb_interval sched_helper::compute_retx_dl_vrbs(const dl_sched_context& decision
 {
   vrb_interval fixed_prbs = {10, 20};
 
-  if (decision_ctxt.ue_rnti == to_rnti(0x4601)) {
     if (fixed_prbs.length() != decision_ctxt.expected_nof_rbs) {
       return {};  // 길이 안 맞으면 재전송 포기
     }
