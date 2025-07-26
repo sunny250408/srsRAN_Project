@@ -27,8 +27,11 @@
 #include "srsran/srslog/srslog.h"
 #include "srsran/support/executors/task_executor.h"
 #include "fmt/format.h"
+#include "cu_cp/ue_manager.h"
+#include "srsran/cu_up/ue_manager.h"
 #include <mutex>
 #include <unordered_map>
+
 
 namespace srsran {
 
@@ -60,6 +63,8 @@ public:
 private:
   // Actual demuxing, to be run in CU-UP executor.
   void handle_pdu_impl(gtpu_teid_t teid, gtpu_demux_pdu_ctx_t pdu_ctx);
+
+  srsran::srs_cu_up::ue_manager& ue_db;
 
   const gtpu_demux_cfg_t cfg;
   dlt_pcap&              gtpu_pcap;

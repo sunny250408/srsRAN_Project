@@ -23,13 +23,24 @@
 #include "gtpu_demux_impl.h"
 #include "gtpu_pdu.h"
 #include <sys/socket.h>
+#include "cu_cp/ue_manager.h"// For ue_context::dscp
+
+
 
 using namespace srsran;
+using namespace srsran::srs_cu_up;
 
-gtpu_demux_impl::gtpu_demux_impl(gtpu_demux_cfg_t cfg_, dlt_pcap& gtpu_pcap_) :
-  cfg(cfg_), gtpu_pcap(gtpu_pcap_), logger(srslog::fetch_basic_logger("GTPU"))
+
+
+gtpu_demux_impl::gtpu_demux_impl(gtpu_demux_cfg_t cfg_, dlt_pcap& gtpu_pcap_, srsran::srs_cu_up::ue_context_db& ue_db_) :
+  cfg(cfg_), gtpu_pcap(gtpu_pcap_), ue_db(ue_db_), logger(srslog::fetch_basic_logger("GTPU"))
 {
   logger.info("GTP-U demux. {}", cfg);
+}
+void gtpu_demux_impl::start()
+{
+  stopped.store(false, std::memory_order_relaxed);
+  logger.info("GTP-U demux started. {}", cfg);
 }
 
 void gtpu_demux_impl::stop()
@@ -121,6 +132,25 @@ void gtpu_demux_impl::handle_pdu_impl(gtpu_teid_t teid, gtpu_demux_pdu_ctx_t pdu
 {
   if (stopped.load(std::memory_order_relaxed)) {
     return;
+  }
+  // 🌟 DSCP 추출
+  auto it = teid_to_tunnel.find(teid);
+  if (it == teid_to_tunnel.end()) {
+    logger.warning("TEID={} not found in tunnel map", teid);
+    return;
+  }
+
+  auto* tunnel = it->second.tunnel;
+  ue_index_t ue_idx = tunnel->get_ue_index();  // 이미 잘 되어 있음
+
+  // 🔥 핵심: ue_manager를 통해 ue_context 획득
+  srsran::srs_cu_up::ue_context* ue = ue_db.find_ue(ue_idx);
+  if (ue != nullptr) {
+    uint8_t dscp_val = extract_dscp_from_ip_pkt(pdu_ctx.pdu); // 네가 만든 함수
+    ue->dscp = dscp_val;
+    logger.info("UE {} DSCP updated to {}", fmt::underlying(ue_idx), dscp_val);
+  } else {
+    logger.warning("UE {} not found in ue_db", fmt::underlying(ue_idx));
   }
 
   if (gtpu_pcap.is_write_enabled()) {

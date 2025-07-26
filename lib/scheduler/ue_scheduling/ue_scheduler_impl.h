@@ -116,6 +116,9 @@ private:
 
   // Last slot run.
   slot_point last_sl_ind;
+
+   // ✅ 추가: DSCP 우선순위 저장용 맵
+  std::unordered_map<du_ue_index_t, uint8_t> ue_dscp_map;
 };
 
 } // namespace srsran

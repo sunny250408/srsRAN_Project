@@ -319,7 +319,7 @@ void ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                    
                             grant.h_dl,
                             nof_layers,
                             tpc,
-                            enable_interleaving);
+                             /* enable_interleaving */ false);
       break;
     default:
       report_fatal_error("Unsupported RNTI type for PDSCH allocation");
@@ -844,7 +844,7 @@ void ue_cell_grid_allocator::dl_newtx_grant_builder::set_pdsch_params(vrb_interv
                                                                       bool enable_interleaving)
 {
   // Transfer the PDSCH parameters to the parent DL grant.
-  parent->set_pdsch_params(parent->dl_grants[grant_index], alloc_vrbs, alloc_crbs, enable_interleaving);
+  parent->set_pdsch_params(parent->dl_grants[grant_index], alloc_vrbs, alloc_crbs, /* enable_interleaving */ false);
 
   // Set PDSCH parameters and set parent as nullptr to avoid further modifications.
   parent = nullptr;

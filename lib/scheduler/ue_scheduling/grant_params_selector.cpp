@@ -30,6 +30,7 @@
 #include "../ue_context/ue_cell.h"
 #include "srsran/ran/transform_precoding/transform_precoding_helpers.h"
 
+
 using namespace srsran;
 using namespace sched_helper;
 
@@ -400,21 +401,21 @@ find_available_vrbs(const dl_sched_context& space_cfg, const vrb_bitmap& used_vr
 vrb_interval sched_helper::compute_newtx_dl_vrbs(const dl_sched_context& decision_ctxt,
                                                  const vrb_bitmap&       used_vrbs,
                                                  unsigned                max_nof_rbs)
-{ if (decision_ctxt.ue_rnti == to_rnti(0x4601)) {
-    return vrb_interval{10, 20};
+{ if (decision_ctxt.ue_rnti == to_rnti(0x4603)) {
+    return vrb_interval{0, 10};
    }
   return find_available_vrbs(decision_ctxt, used_vrbs, max_nof_rbs);
 }
 
 vrb_interval sched_helper::compute_retx_dl_vrbs(const dl_sched_context& decision_ctxt, const vrb_bitmap& used_vrbs)
 {
-  vrb_interval fixed_prbs = {10, 20};
-
-    if (fixed_prbs.length() != decision_ctxt.expected_nof_rbs) {
-      return {};  // 길이 안 맞으면 재전송 포기
-    }
-    return fixed_prbs;s
+   vrb_interval fixed_prbs = {0, 10};
+  if (decision_ctxt.ue_rnti == to_rnti(0x4603)) {
+     if (fixed_prbs.length() != decision_ctxt.expected_nof_rbs) {
+      return vrb_interval{};
   }
+    return fixed_prbs;
+  } 
 
   vrb_interval vrbs = find_available_vrbs(decision_ctxt, used_vrbs, decision_ctxt.expected_nof_rbs);
   if (vrbs.length() != decision_ctxt.expected_nof_rbs) {

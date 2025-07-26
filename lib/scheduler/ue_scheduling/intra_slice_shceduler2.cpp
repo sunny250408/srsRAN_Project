@@ -25,6 +25,20 @@
 
 using namespace srsran;
 
+int get_priority_from_dscp(uint8_t dscp)
+{
+  switch (dscp) {
+    case 46: return 100; // EF (Expedited Forwarding)
+    case 38: case 36: case 34: return 90;  // AF43~AF41 (AF4 class)
+    case 30: case 28: case 26: return 70;  // AF33~AF31 (AF3 class)
+    case 22: case 20: case 18: return 50;  // AF23~AF21 (AF2 class)
+    case 14: case 12: case 10: return 30;  // AF13~AF11 (AF1 class)
+    case 0:  return 10;                    // BE (Best Effort)
+    default: return 20;                   // 기타 값
+  }
+}
+
+
 /// Helper function to form groups of UE candidates in a round-robin fashion.
 /// \return The next \c next_ue_index_offset and \c group_rr_count to be used.
 template <typename UECandidateFactory>
@@ -218,13 +232,6 @@ static std::pair<unsigned, unsigned> get_max_grants_and_rb_grant_size(span<const
 
   unsigned ues_to_alloc = max_ue_grants_to_alloc;
 
-  // 고정 UE 제외한 수로 재설정
-  unsigned fixed_crnti = 0x4603;
-  unsigned variable_ue_count = std::count_if(ue_candidates.begin(), ue_candidates.end(), [&](const auto& c) {
-      return c.ue->crnti() != to_rnti(fixed_crnti);
-  });
-  ues_to_alloc = std::max(variable_ue_count, 1U);
-
   // [Implementation-defined] We use the same searchSpace config to determine the number of RBs available.
   const ue_cell_configuration& ue_cfg  = ue_candidates[0].ue_cc->cfg();
   const search_space_id        ss_id   = ue_cfg.init_bwp().dl_ded.value()->pdcch_cfg->search_spaces.back().get_id();
@@ -393,6 +400,12 @@ void intra_slice_scheduler::prepare_newtx_dl_candidates(const dl_ran_slice_candi
   // Compute priorities using the provided policy.
   dl_policy.compute_ue_dl_priorities(pdcch_slot, pdsch_slot, newtx_candidates);
 
+  for (auto& cand : newtx_candidates) {
+    uint8_t dscp = cand.ue->get_cc().dscp;
+    cand.priority = get_priority_from_dscp(dscp);
+  }
+ // 코드를 삽입
+
   // Sort candidates by priority in descending order.
   std::sort(newtx_candidates.begin(), newtx_candidates.end(), [](const auto& a, const auto& b) {
     return a.priority > b.priority;
@@ -430,6 +443,13 @@ void intra_slice_scheduler::prepare_newtx_ul_candidates(const ul_ran_slice_candi
 
   // Compute priorities using the provided policy.
   ul_policy.compute_ue_ul_priorities(pdcch_slot, pusch_slot, newtx_candidates);
+
+  for (auto& cand : newtx_candidates) {
+    uint8_t dscp = cand.ue->get_cc().dscp;
+    cand.priority = get_priority_from_dscp(dscp); 
+  }
+  //코드삽입
+
 
   // Sort candidates by priority in descending order.
   std::sort(newtx_candidates.begin(), newtx_candidates.end(), [](const auto& a, const auto& b) {
@@ -515,34 +535,23 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
   for (unsigned alloc_count = 0, nof_grants = pending_dl_newtxs.size(); alloc_count != nof_grants; ++alloc_count) {
     auto& grant_builder = pending_dl_newtxs[alloc_count];
     // Determine the max grant size in RBs for this grant.
-// 코드 시작
-  unsigned fixed_crnti = 0x4603;  // 고정할 UE의 CRNTI
-  unsigned fixed_rbs = 5;         // 고정할 PRB 수
-  unsigned ues_to_alloc = std::max(nof_grants - 1, 1U); // 고정 UE 제외한 수
-
-  int max_grant_size;
-
-  if (grant_builder.ue().crnti() == to_rnti(fixed_crnti)) {
-    max_grant_size = fixed_rbs;
-  } else if (alloc_count == nof_grants - 1) {
-    max_grant_size = rbs_to_alloc - rb_count;
-  } else {
-    int remaining_rbs = rbs_to_alloc - fixed_rbs;
-    max_grant_size = remaining_rbs / ues_to_alloc + rbs_missing;
-  }
-// 코드 끝
+    int max_grant_size;
+    if (alloc_count == nof_grants - 1) {
+      // For the last UE, we also account for the remainder.
+      max_grant_size = rbs_to_alloc - rb_count;
+    } else {
+      max_grant_size = max_rbs_per_grant + rbs_missing;
+    }
     srsran_assert(max_grant_size > 0, "Invalid grant size.");
 
     // Derive recommended parameters for the DL newTx grant.
     vrb_interval alloc_vrbs = grant_builder.recommended_vrbs(used_dl_vrbs, max_grant_size);
- 
     if (alloc_vrbs.empty()) {
       logger.error("ue={} c-rnti={}: Failed to allocate PDSCH CRBs",
                    fmt::underlying(grant_builder.ue().ue_index()),
                    grant_builder.ue().crnti());
       continue;
     }
-
 
     // Compute the corresponding CRBs.
     constexpr static search_space_id      ue_ded_ss_id = to_search_space_id(2);
