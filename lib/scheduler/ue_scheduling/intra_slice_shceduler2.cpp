@@ -25,20 +25,6 @@
 
 using namespace srsran;
 
-int get_priority_from_dscp(uint8_t dscp)
-{
-  switch (dscp) {
-    case 46: return 100; // EF (Expedited Forwarding)
-    case 38: case 36: case 34: return 90;  // AF43~AF41 (AF4 class)
-    case 30: case 28: case 26: return 70;  // AF33~AF31 (AF3 class)
-    case 22: case 20: case 18: return 50;  // AF23~AF21 (AF2 class)
-    case 14: case 12: case 10: return 30;  // AF13~AF11 (AF1 class)
-    case 0:  return 10;                    // BE (Best Effort)
-    default: return 20;                   // 기타 값
-  }
-}
-
-
 /// Helper function to form groups of UE candidates in a round-robin fashion.
 /// \return The next \c next_ue_index_offset and \c group_rr_count to be used.
 template <typename UECandidateFactory>
@@ -399,13 +385,6 @@ void intra_slice_scheduler::prepare_newtx_dl_candidates(const dl_ran_slice_candi
 
   // Compute priorities using the provided policy.
   dl_policy.compute_ue_dl_priorities(pdcch_slot, pdsch_slot, newtx_candidates);
-
-  for (auto& cand : newtx_candidates) {
-    uint8_t dscp = cand.ue->get_cc().dscp;
-    cand.priority = get_priority_from_dscp(dscp);
-  }
- // 코드를 삽입
-
   // Sort candidates by priority in descending order.
   std::sort(newtx_candidates.begin(), newtx_candidates.end(), [](const auto& a, const auto& b) {
     return a.priority > b.priority;
@@ -443,14 +422,6 @@ void intra_slice_scheduler::prepare_newtx_ul_candidates(const ul_ran_slice_candi
 
   // Compute priorities using the provided policy.
   ul_policy.compute_ue_ul_priorities(pdcch_slot, pusch_slot, newtx_candidates);
-
-  for (auto& cand : newtx_candidates) {
-    uint8_t dscp = cand.ue->get_cc().dscp;
-    cand.priority = get_priority_from_dscp(dscp); 
-  }
-  //코드삽입
-
-
   // Sort candidates by priority in descending order.
   std::sort(newtx_candidates.begin(), newtx_candidates.end(), [](const auto& a, const auto& b) {
     return a.priority > b.priority;

@@ -27,13 +27,12 @@
 #include "srsran/srslog/srslog.h"
 #include "srsran/support/executors/task_executor.h"
 #include "fmt/format.h"
-#include "cu_cp/ue_manager.h"
-#include "srsran/cu_up/ue_manager.h"
 #include <mutex>
 #include <unordered_map>
 
 
 namespace srsran {
+  
 
 struct gtpu_demux_tunnel_ctx_t {
   gtpu_demux_dispatch_queue&                   batched_queue;
@@ -64,13 +63,13 @@ private:
   // Actual demuxing, to be run in CU-UP executor.
   void handle_pdu_impl(gtpu_teid_t teid, gtpu_demux_pdu_ctx_t pdu_ctx);
 
-  srsran::srs_cu_up::ue_manager& ue_db;
 
   const gtpu_demux_cfg_t cfg;
   dlt_pcap&              gtpu_pcap;
   std::atomic<bool>      stopped = false;
 
   // The map is modified by accessed the io_broker (to get the right executor)
+
   // and the modified by UE executors when setting up/tearing down.
   std::mutex                                                                   map_mutex;
   std::unordered_map<gtpu_teid_t, gtpu_demux_tunnel_ctx_t, gtpu_teid_hasher_t> teid_to_tunnel;

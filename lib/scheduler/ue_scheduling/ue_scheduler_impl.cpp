@@ -22,12 +22,9 @@
 
 #include "ue_scheduler_impl.h"
 #include "../logging/scheduler_metrics_handler.h"
-#include "srsran/ran/rnti.h"
+
 
 using namespace srsran;
-
-uint8_t get_dscp_from_ue(srsran::ue* u)
-
 
 ue_scheduler_impl::ue_scheduler_impl(const scheduler_ue_expert_config& expert_cfg_) :
   expert_cfg(expert_cfg_), logger(srslog::fetch_basic_logger("SCHED")), event_mng(ue_db)
@@ -62,41 +59,7 @@ void ue_scheduler_impl::run_sched_strategy(du_cell_index_t cell_index)
 {
   auto& cell = cells[cell_index];
 
-  // 1. UE들의 DSCP 수집 및 우선순위 정렬
-  std::vector<std::pair<du_ue_index_t, uint8_t>> ue_priority_pairs;
-
-  for (int i = 0; i < MAX_NOF_DU_UES; ++i) {
-    du_ue_index_t ue_idx = to_du_ue_index(i);
-    ue* u = ue_db.find(ue_idx);
-    if (u != nullptr) {
-      uint8_t dscp = get_dscp_from_ue(u);
-      ue_priority_pairs.emplace_back(ue_idx, dscp);
-    }
-  }
-
-  std::sort(ue_priority_pairs.begin(), ue_priority_pairs.end(),
-            [](auto a, auto b) { return a.second > b.second; });
-
-  // 2. 모든 DL candidate 수집
-  std::vector<dl_ran_slice_candidate> all_candidates;
-  while (true) {
-    auto cand_opt = cell.slice_sched.get_next_dl_candidate();
-    if (!cand_opt.has_value()) break;
-    all_candidates.push_back(std::move(cand_opt.value()));
-  }
-
-  // 3. DSCP 순으로 UE를 훑으며 해당 UE가 포함된 candidate만 스케줄링
-  for (const auto& [ue_idx, dscp] : ue_priority_pairs) {
-    for (auto it = all_candidates.begin(); it != all_candidates.end(); ++it) {
-      if (it->is_candidate(ue_idx)) {
-        scheduler_policy& policy = cell.slice_sched.get_policy(it->id());
-        cell.intra_slice_sched.dl_sched(*it, policy);
-        all_candidates.erase(it);  // 한 번 스케줄한 candidate는 제거
-        break;
-      }
-    }
-  }
-   // Schedule DL first.
+  // Schedule DL first.
   // Note: DL should be scheduled first so that the right DAI value is picked in DCI format 0_1.
   while (auto dl_slice_candidate = cell.slice_sched.get_next_dl_candidate()) {
     scheduler_policy& policy = cell.slice_sched.get_policy(dl_slice_candidate->id());
