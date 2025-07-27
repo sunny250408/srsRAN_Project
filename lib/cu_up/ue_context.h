@@ -52,7 +52,7 @@ struct ue_context_cfg {
 class ue_context : public pdu_session_manager_ctrl
 {
 public:
-  uint8_t dscp = 0;
+  uint8_t dscp_priority = 0;
   ue_context(ue_index_t                          index_,
              ue_context_cfg                      cfg_,
              e1ap_control_message_handler&       e1ap_,

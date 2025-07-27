@@ -109,6 +109,9 @@ public:
     return contains(lcid) ? u.dl_logical_channels().hol_toa(lcid) : slot_point{};
   }
 
+  ue& get_ue() { return u; }  // ✅ 이거 추가
+  const ue& get_ue() const { return u; }  // ✅ 이거도 같이
+
 private:
   friend class slice_ue_repository;
 

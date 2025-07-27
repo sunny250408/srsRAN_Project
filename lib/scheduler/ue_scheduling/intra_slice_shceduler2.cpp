@@ -388,24 +388,15 @@ void intra_slice_scheduler::prepare_newtx_dl_candidates(const dl_ran_slice_candi
   // Compute priorities using the provided policy.
   dl_policy.compute_ue_dl_priorities(pdcch_slot, pdsch_slot, newtx_candidates);
   // Sort candidates by priority in descending order.
-// DSCP 기반 우선순위 덮어쓰기
   for (auto& cand : newtx_candidates) {
-    rnti_t rnti = cand.ue->get_cc().rnti();
-    auto it = srsran::dscp_priority_map.find(rnti);
+  // DSCP 기반 우선순위 설정 (slice_ue → ue& u → dscp_priority)
+    cand.priority = cand.ue->u.dscp_priority;
 
-    if (it != srsran::dscp_priority_map.end()) {
-      cand.priority = it->second; // DSCP 값 그대로 priority로 사용
-    } else {
-      cand.priority = 0;
-    }
-
-    logger.info("Scheduler: UE rnti={} → DSCP={} → priority={}", rnti, cand.priority, cand.priority);
+    logger.info("Scheduler: UE rnti={} → DSCP={} → priority={}",
+                cand.ue->get_cc().rnti(),
+                cand.ue->u.dscp_priority,
+                cand.priority);
   }
-
-  std::sort(newtx_candidates.begin(), newtx_candidates.end(), [](const auto& a, const auto& b) {
-    return a.priority > b.priority;
-  });
-
   // Remove candidates with forbid priority.
   auto rit = std::find_if(newtx_candidates.rbegin(), newtx_candidates.rend(), [](const auto& cand) {
     return cand.priority != forbid_sched_priority;
@@ -440,17 +431,15 @@ void intra_slice_scheduler::prepare_newtx_ul_candidates(const ul_ran_slice_candi
   ul_policy.compute_ue_ul_priorities(pdcch_slot, pusch_slot, newtx_candidates);
   // Sort candidates by priority in descending order.
 // DSCP 기반 우선순위 덮어쓰기
+  // DSCP 기반 우선순위 적용
   for (auto& cand : newtx_candidates) {
-    rnti_t rnti = cand.ue->get_cc().rnti();
-    auto it = srsran::dscp_priority_map.find(rnti);
+  // DSCP 기반 우선순위 설정 (slice_ue → ue& u → dscp_priority)
+    cand.priority = cand.ue->get_ue().dscp_priority;
 
-    if (it != srsran::dscp_priority_map.end()) {
-      cand.priority = it->second; // DSCP 값 그대로 priority로 사용
-    } else {
-      cand.priority = 0;
-    }
-
-    logger.info("Scheduler: UE rnti={} → DSCP={} → priority={}", rnti, cand.priority, cand.priority);
+    logger.info("Scheduler: UE rnti={} → DSCP={} → priority={}",
+                cand.ue->get_cc().rnti(),
+                cand.ue->get_ue().dscp_priority,
+                cand.priority);
   }
   std::sort(newtx_candidates.begin(), newtx_candidates.end(), [](const auto& a, const auto& b) {
     return a.priority > b.priority;

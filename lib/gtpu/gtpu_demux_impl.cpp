@@ -174,6 +174,7 @@ void gtpu_demux_impl::handle_pdu_impl(gtpu_teid_t teid, gtpu_demux_pdu_ctx_t pdu
   // UE 객체로부터 RNTI 얻기 (gNB 입장에서는 이미 UE와 연결된 상태라면 가능해야 함)
 if (auto* ue = dynamic_cast<srsran::srs_cu_up::ue_context*>(tunnel)) {
     srsran::srs_cu_up::ue_index_t idx = ue->get_index();
+     ue->dscp_priority = dscp;
     logger.info("Scheduler: UE index={} (DSCP={} → priority={})",
                 static_cast<uint16_t>(idx), dscp, dscp);
 }
