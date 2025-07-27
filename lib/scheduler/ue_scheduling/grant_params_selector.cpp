@@ -410,12 +410,17 @@ vrb_interval sched_helper::compute_newtx_dl_vrbs(const dl_sched_context& decisio
 if (decision_ctxt.ue_rnti == to_rnti(0x4603)) {
   return vrb_interval{30, 15}; // UE3
    }
+   if (decision_ctxt.ue_rnti == to_rnti(0x4602)) {
+  return vrb_interval{15, 15}; // UE2
+   }
+if (decision_ctxt.ue_rnti == to_rnti(0x4603)) {
+  return vrb_interval{30, 15}; // UE3
+   }
   return find_available_vrbs(decision_ctxt, used_vrbs, max_nof_rbs);
 }
 
 vrb_interval sched_helper::compute_retx_dl_vrbs(const dl_sched_context& decision_ctxt, const vrb_bitmap& used_vrbs)
 {
-   vrb_interval vrbs = find_available_vrbs(decision_ctxt, used_vrbs, decision_ctxt.expected_nof_rbs);
   if (vrbs.length() != decision_ctxt.expected_nof_rbs) {
     // In case of Retx, the #CRBs need to stay the same.
     return {};
