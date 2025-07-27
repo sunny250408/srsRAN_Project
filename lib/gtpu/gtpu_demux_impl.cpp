@@ -22,17 +22,25 @@
 
 #include "gtpu_demux_impl.h"
 #include "gtpu_pdu.h"
+#include "ue_context.h"
+#include "srsran/adt/byte_buffer.h"
+#include "srsran/support/bit_encoding.h"
+#include "dscp_priority_db.h"
+
 #include <sys/socket.h>
 
 
 
-
-using namespace srsran;
-
+namespace srsran {
+inline const uint8_t* to_byte_ptr(byte_buffer::const_iterator it) {
+  return &*it;
+}
 
 gtpu_demux_impl::gtpu_demux_impl(gtpu_demux_cfg_t cfg_, dlt_pcap& gtpu_pcap_) :
   cfg(cfg_), gtpu_pcap(gtpu_pcap_), logger(srslog::fetch_basic_logger("GTPU"))
-
+{
+  logger.info("GTP-U demux. {}", cfg);
+}
 
 void gtpu_demux_impl::start()
 {
@@ -158,5 +166,18 @@ void gtpu_demux_impl::handle_pdu_impl(gtpu_teid_t teid, gtpu_demux_pdu_ctx_t pdu
   }
   // Forward entire PDU to the tunnel.
   // As removal happens in the same thread as handling the PDU, we no longer need the lock.
+  // ✅ ✨ 여기에 넣어야 함 (tunnel 얻은 뒤, handle_pdu 호출 전)
+  // IP 헤더에서 DSCP 추출
+  const uint8_t* payload = to_byte_ptr(pdu_ctx.pdu.begin());
+  uint8_t dscp = (payload[1] & 0xFC) >> 2; // DSCP는 2~7bit (IPv4)
+
+  // UE 객체로부터 RNTI 얻기 (gNB 입장에서는 이미 UE와 연결된 상태라면 가능해야 함)
+if (auto* ue = dynamic_cast<srsran::srs_cu_up::ue_context*>(tunnel)) {
+    srsran::srs_cu_up::ue_index_t idx = ue->get_index();
+    logger.info("Scheduler: UE index={} (DSCP={} → priority={})",
+                static_cast<uint16_t>(idx), dscp, dscp);
+}
+
   tunnel->handle_pdu(std::move(pdu_ctx.pdu), pdu_ctx.src_addr);
+}
 }

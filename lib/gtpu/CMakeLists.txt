@@ -28,4 +28,10 @@ set(SOURCES gtpu_tunnel_ngu_factory.cpp
             gtpu_gateway.cpp)
 
 add_library(srsran_gtpu STATIC ${SOURCES})
-target_link_libraries(srsran_gtpu srsran_nru srsran_psup srsran_support srsran_gateway)
+target_include_directories(srsran_gtpu
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/cu_up
+    ${CMAKE_SOURCE_DIR}/lib/common 
+)
+target_compile_options(srsran_gtpu PRIVATE -frtti)
+target_link_libraries(srsran_gtpu srsran_nru srsran_psup srsran_support srsran_gateway srsran_cu_cp)

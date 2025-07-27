@@ -29,3 +29,9 @@ set(SOURCES
 )
 
 add_library(ue_sched OBJECT ${SOURCES})
+
+# ✅ 여기에 include 디렉토리 추가
+target_include_directories(ue_sched PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib/common
+)
