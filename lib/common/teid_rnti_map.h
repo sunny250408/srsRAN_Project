@@ -1,30 +1,28 @@
 #pragma once
-
 #include <unordered_map>
 #include <mutex>
 #include <cstdint>
 
 namespace srsran {
 
-class dscp_priority_db {
+class teid_rnti_map {
 public:
-  void set(uint16_t rnti, uint8_t dscp) {
+  void set(uint32_t teid, uint16_t rnti) {
     std::lock_guard<std::mutex> lock(mtx);
-    db[rnti] = dscp;
+    db[teid] = rnti;
   }
 
-  uint8_t get(uint16_t rnti) const {
+  uint16_t get(uint32_t teid) const {
     std::lock_guard<std::mutex> lock(mtx);
-    auto it = db.find(rnti);
+    auto it = db.find(teid);
     return (it != db.end()) ? it->second : 0;
   }
 
 private:
   mutable std::mutex mtx;
-  std::unordered_map<uint16_t, uint8_t> db;
+  std::unordered_map<uint32_t, uint16_t> db;
 };
 
-// 전역 인스턴스
-inline dscp_priority_db global_dscp_db;
+inline teid_rnti_map global_teid_rnti;
 
 } // namespace srsran

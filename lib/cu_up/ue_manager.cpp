@@ -22,6 +22,12 @@
 
 #include "ue_manager.h"
 #include "srsran/support/async/execute_on_blocking.h"
+#include "teid_rnti_map.h"
+
+void some_context::on_new_ue(uint32_t teid, uint16_t rnti)
+{
+  global_teid_rnti.set(teid, rnti);
+}
 
 using namespace srsran;
 using namespace srs_cu_up;

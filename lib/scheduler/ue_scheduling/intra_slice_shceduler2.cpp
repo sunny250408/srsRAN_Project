@@ -22,10 +22,18 @@
 
 #include "intra_slice_scheduler.h"
 #include "srsran/ran/pdcch/search_space.h"
-#include "common/dscp_priority_db.h"
-
+#include "dscp_priority_db.h"
 
 using namespace srsran;
+
+struct dl_newtx_candidate {
+  ue* ue;
+  slice_priority slice_prio;
+  uint32_t pending_bytes;
+  uint32_t buffer_size;
+  uint32_t priority = 0; // DSCP 기반 priority, 기본값 0
+};
+
 
 /// Helper function to form groups of UE candidates in a round-robin fashion.
 /// \return The next \c next_ue_index_offset and \c group_rr_count to be used.
@@ -382,21 +390,22 @@ void intra_slice_scheduler::prepare_newtx_dl_candidates(const dl_ran_slice_candi
   slice_sched.dl_next_rr_group_offset = next_offset;
   slice_sched.dl_rr_count             = next_count;
   if (newtx_candidates.empty()) {
-    return;
+    return 0;
   }
-
-  // Compute priorities using the provided policy.
-  dl_policy.compute_ue_dl_priorities(pdcch_slot, pdsch_slot, newtx_candidates);
-  // Sort candidates by priority in descending order.
+  // 먼저 DSCP 기반 priority 계산
   for (auto& cand : newtx_candidates) {
-  // DSCP 기반 우선순위 설정 (slice_ue → ue& u → dscp_priority)
-    cand.priority = cand.ue->u.dscp_priority;
-
-    logger.info("Scheduler: UE rnti={} → DSCP={} → priority={}",
-                cand.ue->get_cc().rnti(),
-                cand.ue->u.dscp_priority,
-                cand.priority);
+    auto rnti = cand.ue->get_cc().rnti();
+    uint16_t rnti_val = static_cast<uint16_t>(rnti);
+    cand.priority = convert_dscp_to_priority(srsran::global_dscp_db.get(rnti_val));
+    logger.info("Scheduler: UE rnti={} → DSCP={} → priority={}", rnti_val, srsran::global_dscp_db.get(rnti_val), cand.priority);
   }
+
+  // 우선순위 정렬
+  std::sort(newtx_candidates.begin(), newtx_candidates.end(),
+            [](const dl_newtx_candidate& a, const dl_newtx_candidate& b) {
+              return a.priority > b.priority;
+            });
+
   // Remove candidates with forbid priority.
   auto rit = std::find_if(newtx_candidates.rbegin(), newtx_candidates.rend(), [](const auto& cand) {
     return cand.priority != forbid_sched_priority;
@@ -424,26 +433,18 @@ void intra_slice_scheduler::prepare_newtx_ul_candidates(const ul_ran_slice_candi
   slice_sched.ul_next_rr_group_offset = next_offset;
   slice_sched.ul_rr_count             = next_count;
   if (newtx_candidates.empty()) {
-    return;
+    return 0;
   }
 
-  // Compute priorities using the provided policy.
-  ul_policy.compute_ue_ul_priorities(pdcch_slot, pusch_slot, newtx_candidates);
-  // Sort candidates by priority in descending order.
-// DSCP 기반 우선순위 덮어쓰기
-  // DSCP 기반 우선순위 적용
-  for (auto& cand : newtx_candidates) {
-  // DSCP 기반 우선순위 설정 (slice_ue → ue& u → dscp_priority)
-    cand.priority = cand.ue->get_ue().dscp_priority;
-
-    logger.info("Scheduler: UE rnti={} → DSCP={} → priority={}",
-                cand.ue->get_cc().rnti(),
-                cand.ue->get_ue().dscp_priority,
-                cand.priority);
-  }
   std::sort(newtx_candidates.begin(), newtx_candidates.end(), [](const auto& a, const auto& b) {
     return a.priority > b.priority;
   });
+
+  std::sort(ues.begin(), ues.end(), [](ue* a, ue* b) {
+  uint8_t dscp_a = global_dscp_db.get(a->rnti);
+  uint8_t dscp_b = global_dscp_db.get(b->rnti);
+  return dscp_a > dscp_b;  // DSCP 값 높은 UE 먼저 스케줄링
+});
 
   // Remove candidates with forbid priority.
   auto rit = std::find_if(newtx_candidates.rbegin(), newtx_candidates.rend(), [](const auto& cand) {
@@ -451,71 +452,6 @@ void intra_slice_scheduler::prepare_newtx_ul_candidates(const ul_ran_slice_candi
   });
   newtx_candidates.erase(rit.base(), newtx_candidates.end());
 }
-
-unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candidate& slice,
-                                                             scheduler_policy&       dl_policy,
-                                                             unsigned                max_ue_grants_to_alloc)
-{
-  // Prepare candidate list.
-  prepare_newtx_dl_candidates(slice, dl_policy);
-  if (newtx_candidates.empty()) {
-    return 0;
-  }
-
-  // Recompute max number of UE grants that can be scheduled in this slot and the number of RBs per grant.
-  auto [rbs_to_alloc, max_rbs_per_grant] = get_max_grants_and_rb_grant_size(
-      newtx_candidates, cell_alloc, slice, used_dl_vrbs, std::min(max_ue_grants_to_alloc, expected_pdschs_per_slot));
-  if (max_rbs_per_grant == 0) {
-    return 0;
-  }
-
-  // Stage 1: Pre-select UEs with the highest priority and reserve control-plane space for their DL grants.
-  unsigned rb_count                   = 0;
-  bool     pucch_grant_limit_exceeded = false;
-  for (const auto& ue_candidate : newtx_candidates) {
-    if (pucch_grant_limit_exceeded) {
-      // Only select UE if it has a UCI already pending in a future slot.
-      if (not ue_candidate.ue_cc->harqs.last_ack_slot().valid() or
-          ue_candidate.ue_cc->harqs.last_ack_slot() < pdsch_slot) {
-        continue;
-      }
-    }
-
-    // Create DL grant builder.
-    auto result =
-        ue_alloc.allocate_dl_grant(ue_newtx_dl_grant_request{*ue_candidate.ue, pdsch_slot, ue_candidate.pending_bytes});
-
-    if (result.has_value()) {
-      // Allocation was successful. Move grant builder to list of pending newTx grants.
-      auto& grant_builder = result.value();
-      rb_count += std::min(grant_builder.context().expected_nof_rbs, max_rbs_per_grant);
-      pending_dl_newtxs.push_back(std::move(grant_builder));
-      if (rb_count >= rbs_to_alloc) {
-        // Enough UEs have been allocated to ensure that the grid is filled. Move to stage 2.
-        break;
-      }
-      if (pending_dl_newtxs.size() >= max_ue_grants_to_alloc) {
-        // Maximum number of allocations reached. Move to stage 2.
-        break;
-      }
-    } else if (result.error() == dl_alloc_failure_cause::skip_slot) {
-      // Received signal to stop allocations in the slot. Move to stage 2.
-      break;
-    } else if (result.error() == dl_alloc_failure_cause::uci_alloc_failed) {
-      // The scheduler likely ran out of PUCCH resources. Prioritize UEs which have a UCI already pending.
-      pucch_grant_limit_exceeded = true;
-    }
-
-    dl_attempts_count++;
-    if (dl_attempts_count >= expert_cfg.max_pdcch_alloc_attempts_per_slot) {
-      // Maximum number of attempts per slot reached.
-      break;
-    }
-  }
-
-  if (pending_dl_newtxs.empty()) {
-    return 0;
-  }
 
   // Stage 2: Derive CRBs, MCS, and number of layers for each grant.
   max_rbs_per_grant = rbs_to_alloc / pending_dl_newtxs.size();

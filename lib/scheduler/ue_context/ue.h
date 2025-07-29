@@ -56,8 +56,6 @@ public:
 
   const du_ue_index_t ue_index;
   const rnti_t        crnti;
-
-  uint8_t dscp_priority = 0;  // <<< 요기 추가!!
   
   void slot_indication(slot_point sl_tx);
 
